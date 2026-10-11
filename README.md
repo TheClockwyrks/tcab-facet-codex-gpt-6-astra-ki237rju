@@ -1,95 +1,56 @@
-# Facet — starter project
+# Facet
 
-This repository is the starting point for building Facet, the game the
-specification under `specs/` describes. Read `specs/overview.md` first; it says
-how the rest of the specification is organized. This file is the starter
-README, not a deliverable: `specs/overview.md` states the `README.md` the
-finished build ships in its place.
+A browser puzzle of cut stones, pressure, and chain reactions. Swap neighboring gems into lines of three or more. Each clear strains the surrounding stones; flawed gems join nearby clears for double points. Longer and intersecting matches create brilliant, star, and prism cuts with distinct powers.
 
-The project is already wired up. It builds on the Simple 2D engine, which is
-installed as an ordinary dependency and documents itself under `engine/`; read
-that alongside the specs. What is missing is the game, and the art, effects, and
-sounds it plays.
+Reach the level target to continue onto a new board. A round ends when no productive swap remains. There is no timer, backend, account, or persistence.
 
-## What you own
+## Run
 
-`src/game.ts`, and any new files you add beside it.
+```sh
+npm ci
+npm run dev
+```
 
-Start by declaring and exporting `FacetState`, exactly as `specs/state.md` fixes
-it, and `FacetDebugApi`, exactly as `specs/instrumentation.md` fixes it. The
-stub in `src/game.ts` is written against both names, so the project does not
-compile until they exist.
+Open the URL printed by Vite. The game uses a fixed logical stage, fitted and letterboxed by Simple 2D for the current window and pixel density.
 
-`src/game.ts` then exports `game`, a `Game<FacetState, FacetDebugApi>`: three
-functions over that state. `initialize` builds the state and the debug surface
-once and returns them together as `[state, debug]`; `update` takes the current
-state as a read-only view (`DeepReadonly<FacetState>`, from `ts-essentials`) and
-returns the next state, advanced against the frame's delta time in seconds; and
-`render` is handed that next state, read-only again, and draws it. The engine
-holds the state by value and replaces it with whatever `update` returns, so a
-frame builds the next state from the current one rather than writing into it,
-and the type is what guarantees that rendering changes nothing. All three throw
-as they stand. Implement them; where their implementation lives under `src/` is
-your call.
+## Production
 
-The pointer comes from the engine. A gem is selected by pressing on it and a
-swap is requested by pressing its neighbor or dragging onto it, and the engine
-hands the game the pointer's position already in logical stage units along with
-its press and release edges; read the engine's input documentation for the API.
-`specs/controls.md` states what Facet does with the three of them.
+```sh
+npm run build
+npm run preview
+```
 
-The assets are yours to produce. Facet ships no art and no sound: you produce
-every sprite, sheet, particle system, and cue with the asset tools on this
-machine's `PATH`, commit the files under `public/assets/`, and load them through
-the engine's own asset and audio APIs. `specs/assets.md` is the contract, and
-the engine's `assets.md` and `audio.md` state the asset root, the path rules,
-and the looping cues. The tools are absent when the build is installed and
-rebuilt elsewhere, so the build bundles the committed files and invokes no tool.
+`dist/` is the complete static site. Serve it at the origin root or any subdirectory; every runtime asset URL is relative. Building only compiles and bundles committed files. No asset generator, external service, or credential is needed.
 
-The debug surface is a required deliverable. The engine returns it from
-`engine.debug` exactly as `initialize` handed it over, and that is how the game
-is driven from code, so it is present and exactly as `specs/instrumentation.md`
-specifies. Because nothing holds a writable state, its operations are written in
-the shape of `update`: a pose takes the current state and returns the next, and
-a caller applies it through `engine.apply((s) => debug.loadBoard(s, rows))`; a
-reading takes the state and returns what it read, as
-`debug.snapshot(engine.state)`. Nothing is published to the page.
+## Controls
 
-`FacetState` is a contract. Keep every field, under the name, type, and meaning
-`specs/state.md` gives it. You may add fields, but only for data you can rebuild
-from the declared ones: the declared fields are the whole of the authoritative
-state, and the surface's `reset` restores exactly those. Loaded images and
-decoded audio are the one exception, since they are not game state.
+- **Mouse, pen, or touch:** press a gem, drag onto an orthogonal neighbor, and release. You can also tap a gem, then tap its neighbor. Carrying back to the selected gem withdraws the offer.
+- **Menus:** click or tap; alternatively use ↑ / ↓ and Enter / Space.
+- **Esc / P:** pause or resume. Esc also leaves the handbook and game-over screen.
+- **M:** mute or unmute all audio. Sound unlocks after the first interaction.
+- **Backtick:** toggle the engine’s diagnostic overlay.
 
-Tests you write belong beside your sources as `src/**/*.test.ts`. `npm test`
-runs them in process, with coverage over `src/`. The engine's `debug.md` and
-`frame.md` show how a test stands the engine up over a `ConstantClock`, poses a
-board through the debug surface, and advances it a counted number of frames.
+## Checks
 
-## What you must not edit
+```sh
+npm run typecheck
+npm run lint
+npm run format
+npm test
+```
 
-- `src/main.ts`, the fixed entry point. It creates the engine over the page's
-  canvas, binds `game` to it, and runs.
-- `src/constants.ts`, every figure the specification fixes: the stage and the
-  board geometry, the gem kinds and the cuts, the strain and match figures, the
-  chain and refusal durations, the scoring and level figures, the action names,
-  the cue names, and the screen copy. Read from it.
-- `index.html`, the page and the canvas the engine fits the stage into.
-- The toolchain: `package.json`, `tsconfig.json`, `vite.config.ts`,
-  `vitest.config.ts`, `eslint.config.js`, `.prettierrc.json`, `.prettierignore`,
-  and `.gitignore`.
-- `.vendor/` and `engine/`, the vendored engine and its documentation.
+The tests cover match detection, least-wave expansion, strain, cut placement and precedence, prism swaps, scoring, refill and gravity, delta-time boundaries, level transitions, pointer input, debug poses, and the engine running over a real Node canvas. Integration tests load the committed art and particle systems; the browser audio decoder alone is replaced in the Node test host.
 
-Add dependencies to `package.json` if you genuinely need them, and commit the
-`package-lock.json`; the build is installed with `npm ci`. Leave the existing
-entries alone.
+## Source and assets
 
-## Commands
+- `src/game.ts` declares the public immutable state and exports the engine game.
+- `src/board.ts` and `src/simulation.ts` implement board rules and timed resolution.
+- `src/controls.ts` and `src/debug.ts` share immediate input and pose transitions.
+- `src/runtime.ts` loads resources, registers engine input and diagnostics, and plays cues.
+- `src/render.ts` draws the stage, sprites, and live particle simulations without changing game state.
+- `public/assets/` contains original, committed PNG sprites and animation frames, authored particle systems, synthesized and sampled WAV cues, and two sequenced WAV/MIDI pieces.
+- `showcase/` contains player-facing copy, screenshots, and a genuine engine drawing replay.
 
-- `npm run dev` serves the game with hot reload.
-- `npm run build` type-checks, then emits the static site into `dist/`.
-- `npm run preview` serves `dist/` for a final check.
-- `npm run typecheck` runs `tsc --noEmit`.
-- `npm run lint` runs ESLint.
-- `npm run format` runs Prettier in check mode.
-- `npm test` runs Vitest over `src/**/*.test.ts`, with coverage.
+`tools/produce_assets.py` records the one-time asset recipe using `draw`, `draw-sheet`, `particle-2d`, `sfx-synth`, `sfx-sample`, and `music`. Those authoring binaries are only necessary to regenerate the artwork and audio, never to install, build, or play. The sampled shatter uses the supplied combat-core material; the original scores use the supplied gm-lite instruments.
+
+To recapture the showcase while the development server is running, run `node tools/capture.mjs`. This creates an isolated engine instance and uses its own recorder; no capture handle is installed by the shipped game.
